@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "checkJs": false,
+        "allowJs": true,
+        "target": "ES2020",
+        "module": "ES2020",
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "noImplicitAny": true,
+        "forceConsistentCasingInFileNames": true,
+        "lib": [
+            "ES2020"
+        ]
+    },
+    "include": [
+        "**/*.js",
+        "../AkYouTubeClone/src/utils/db.js"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}
