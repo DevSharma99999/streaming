@@ -1,24 +1,19 @@
 import nodemailer from "nodemailer";
 
 export const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
+    // Direct IPv4 for Gmail SMTP to bypass IPv6 ENETUNREACH
+    host: "64.233.184.108", 
     port: 587,
     secure: false, 
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
-    // INCREASE TIMEOUTS for Render's slower network
-    connectionTimeout: 20000, // 20 seconds
-    greetingTimeout: 20000,
-    socketTimeout: 30000,
-    // Keep the IPv4 force
-    dnsLookup: (hostname, options, callback) => {
-        callback(null, "64.233.184.108", 4); 
-    },
+    // Adding this is necessary when using a direct IP as the host
     tls: {
-        rejectUnauthorized: false,
-        // This helps prevent protocol hanging
-        minVersion: 'TLSv1.2' 
-    }
+        servername: 'smtp.gmail.com',
+        rejectUnauthorized: false
+    },
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
 });
