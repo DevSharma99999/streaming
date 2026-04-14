@@ -53,14 +53,19 @@ app.use("/api/ai",aiRouter);
 
 
 //here app and mongoose connection
-const port=process.env.PORT;
-mongoose.connect(process.env.mongooseKey).then( ()=>{
-    console.log("connect to mongoose");
-    app.listen(port, ()=>{
-        console.log(`app is running on http://localhost:${port}`);
-    });
+// ... existing code ...
+
+const port = process.env.PORT || 5000; // Added fallback just in case
+
+mongoose.connect(process.env.mongooseKey)
+    .then(() => {
+        console.log("connect to mongoose");
+        // Explicitly listen on 0.0.0.0
+        app.listen(port, "0.0.0.0", () => {
+            console.log(`Server is live on port ${port}`);
+        });
     })
-    .catch((err)=>{
-        console.log("errror ,app not running",err);
+    .catch((err) => {
+        console.log("error, app not running", err);
     });
 
