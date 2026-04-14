@@ -1,9 +1,8 @@
 import { User } from "../models/userModel.js";
-import { video as Video } from "../models/videoModel.js";
 import jwt from "jsonwebtoken";
-import { transporter } from "../utils/nodeMailer.js";
 import validator from "validator";
 import mongoose from "mongoose";
+import { sendValdoraEmail } from "../utils/email.js";
 
 // --- HELPERS ---
 const generateToken = (id) => {
@@ -18,8 +17,7 @@ const cookieOptions = {
 };
 
 /**
- * REGISTER USER with OTP
- * Checks for existing user, validates email, sends OTP
+ * REGISTER USER
  */
 export const registerUser = async (req, res) => {
     try {
@@ -49,23 +47,9 @@ export const registerUser = async (req, res) => {
             isVerified: false
         });
 
-         transporter.sendMail({
-            from: `"Valdora Team" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: "Verify your Valdora Account",
-            html: `
-                <div style="font-family: sans-serif; text-align: center; background: #0f0f0f; color: white; padding: 20px; border-radius: 10px;">
-                    <h2 style="color: #e11d48;">Welcome to Valdora</h2>
-                    <p>Use the code below to verify your email:</p>
-                    <div style="background: #1a1a1a; padding: 20px; border: 1px solid #e11d48; display: inline-block; border-radius: 8px;">
-                        <h1 style="letter-spacing: 10px; font-size: 40px; margin: 0; color: #e11d48;">${otp}</h1>
-                    </div>
-                    <p style="margin-top: 20px; opacity: 0.7;">This code expires in 10 minutes.</p>
-                </div>
-            `
-        }).catch((err) => {
-            console.error("Email sending error:", err);
-        });
+        // Background Email Trigger (Non-blocking)
+        sendValdoraEmail(email, otp, "Verify your Valdora Account")
+            .catch(err => console.error("Registration Email Failed:", err));
 
         res.status(201).json({ success: true, message: "OTP sent to email!" });
     } catch (error) {
@@ -101,7 +85,6 @@ export const verifyOTP = async (req, res) => {
 
 /**
  * LOGIN USER
- * Block if not verified
  */
 export const loginUser = async (req, res) => {
     try {
@@ -145,10 +128,7 @@ export const logoutUser = async (req, res) => {
 };
 
 /**
- * FORGOT PASSWORD (Actual Email)
- */
-/**
- * FORGOT PASSWORD (OTP Version)
+ * FORGOT PASSWORD
  */
 export const forgotPassword = async (req, res) => {
     try {
@@ -157,31 +137,16 @@ export const forgotPassword = async (req, res) => {
 
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        // Generate 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); 
 
         user.otp = otp;
         user.otpExpiry = otpExpiry;
         await user.save();
 
-         transporter.sendMail({
-            from: `"Valdora Support" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: 'Your Password Reset OTP',
-            html: `
-                <div style="font-family: sans-serif; text-align: center; background: #0f0f0f; color: white; padding: 20px; border-radius: 10px;">
-                    <h2 style="color: #e11d48;">Reset Your Password</h2>
-                    <p>Use the code below to reset your Valdora password:</p>
-                    <div style="background: #1a1a1a; padding: 20px; border: 1px solid #e11d48; display: inline-block; border-radius: 8px;">
-                        <h1 style="letter-spacing: 10px; font-size: 40px; margin: 0; color: #e11d48;">${otp}</h1>
-                    </div>
-                    <p style="margin-top: 20px; opacity: 0.7;">This code expires in 10 minutes.</p>
-                </div>
-            `
-        }).catch((err) => {
-            console.error("Email sending error:", err);
-        });
+        // Background Email Trigger (Non-blocking)
+        sendValdoraEmail(email, otp, "Your Password Reset OTP")
+            .catch(err => console.error("Reset Email Failed:", err));
 
         res.status(200).json({ success: true, message: 'OTP sent to your email!' });
     } catch (error) {
@@ -190,24 +155,21 @@ export const forgotPassword = async (req, res) => {
 };
 
 /**
- * RESET PASSWORD (OTP Version)
+ * RESET PASSWORD
  */
 export const resetPassword = async (req, res) => {
     try {
         const { email, otp, newPassword } = req.body;
-
         const user = await User.findOne({ email });
 
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        // Verify OTP
         if (user.otp !== otp || user.otpExpiry < Date.now()) {
             return res.status(400).json({ message: "Invalid or expired OTP" });
         }
 
-        // Update Password
         user.password = newPassword;
-        user.otp = undefined; // Clear OTP after use
+        user.otp = undefined;
         user.otpExpiry = undefined;
         await user.save();
 
@@ -219,21 +181,17 @@ export const resetPassword = async (req, res) => {
 
 /**
  * GET USER PROFILE
- * Includes String & ObjectId search and History management
  */
 export const getUserProfile = async (req, res) => {
     try {
         const userId = req.user._id;
-        const userIdString = userId.toString();
-
         const userProfile = await User.findById(userId).select("-password").lean();
+        
         if (!userProfile) return res.status(404).json({ message: "User not found" });
 
         const videos = await mongoose.connection.db
             .collection("videos") 
-            .find({ 
-                $or: [{ owner: userIdString }, { owner: userId }] 
-            }) 
+            .find({ owner: userId }) // Cleaned up for standard ObjectId search
             .sort({ createdAt: -1 })
             .toArray();
 
