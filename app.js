@@ -28,14 +28,14 @@ app.get('/test', (req, res) => {
 
 //here use
 app.use(cors({
-    origin: 'https://streamin-ak-gamma.vercel.app', 
+    origin: 'https://streamin-ak-gamma.vercel.app',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// IMPORTANT: Put this BEFORE your routes
-app.options('*', cors());
+// Use the regex version here for Express 5 compatibility
+app.options(/(.*)/, cors());
 // We need higher limits for video metadata and large payloads
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
