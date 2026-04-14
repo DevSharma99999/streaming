@@ -49,7 +49,7 @@ export const registerUser = async (req, res) => {
             isVerified: false
         });
 
-        await transporter.sendMail({
+         transporter.sendMail({
             from: `"Valdora Team" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: "Verify your Valdora Account",
@@ -63,6 +63,8 @@ export const registerUser = async (req, res) => {
                     <p style="margin-top: 20px; opacity: 0.7;">This code expires in 10 minutes.</p>
                 </div>
             `
+        }).catch((err) => {
+            console.error("Email sending error:", err);
         });
 
         res.status(201).json({ success: true, message: "OTP sent to email!" });
@@ -163,7 +165,7 @@ export const forgotPassword = async (req, res) => {
         user.otpExpiry = otpExpiry;
         await user.save();
 
-        await transporter.sendMail({
+         transporter.sendMail({
             from: `"Valdora Support" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: 'Your Password Reset OTP',
@@ -177,7 +179,9 @@ export const forgotPassword = async (req, res) => {
                     <p style="margin-top: 20px; opacity: 0.7;">This code expires in 10 minutes.</p>
                 </div>
             `
-        });
+        }).catch((err) => {
+            console.error("Email sending error:", err);
+        }
 
         res.status(200).json({ success: true, message: 'OTP sent to your email!' });
     } catch (error) {
