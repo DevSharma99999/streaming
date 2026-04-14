@@ -28,7 +28,7 @@ app.get('/test', (req, res) => {
 
 //here use
 app.use(cors({
-    origin: 'https://streamin-ak-gamma.vercel.app',
+    origin: 'https://streaming-ak-gamma.vercel.app',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
