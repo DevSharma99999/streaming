@@ -26,11 +26,36 @@ export const processAndUploadVideo = async (localPath) => {
     const outputDir = path.resolve(`./public/temp/${videoId}`);
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-    const runffmpeg = (opts, name) => 
-        new Promise((res, rej) => {
-            ffmpeg(absPath).outputOptions(opts).output(path.join(outputDir, name))
-            .on("end", res).on("error", rej).run();
-        });
+    const runffmpeg = (options, outputName) =>
+    new Promise((resolve, reject) => {
+        console.log(`🎬 Initializing FFmpeg: ${outputName}`);
+
+        const command = ffmpeg(absolutePath)
+            .outputOptions(options)
+            .output(path.join(outputDir, outputName))
+            .on("start", (cmd) => {
+                // This shows you exactly what command Render is running
+                console.log(`🖥️ Render Command: ${cmd}`);
+            })
+            .on("stderr", (stderrLine) => {
+                // THIS CAPTURES FFmpeg INTERNAL ERRORS
+                if (stderrLine.includes("Error") || stderrLine.includes("invalid")) {
+                    console.error(`⚠️ FFmpeg Internal: ${stderrLine}`);
+                }
+            })
+            .on("error", (err, stdout, stderr) => {
+                console.error("❌ FFmpeg Hard Crash!");
+                console.error("Message:", err.message);
+                console.error("Stderr Output:", stderr);
+                reject(err);
+            })
+            .on("end", () => {
+                console.log(`✅ Finished: ${outputName}`);
+                resolve();
+            });
+
+        command.run();
+    });
 
     try {
         const metadata = await new Promise((res, rej) => ffmpeg.ffprobe(absPath, (e, d) => e ? rej(e) : res(d)));

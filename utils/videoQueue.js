@@ -22,11 +22,15 @@ const worker = new Worker(
         let result = null;
 
         try {
-            console.log(`🎬 Processing: ${title}`);
+            console.log("-----------------------------------------");
+            console.log(`🚀 JOB START: ${job.id} | Title: ${job.data.title}`);
             
-            // Sequential processing (360p then 480p) to save RAM
-            result = await processAndUploadVideo(localPath);
-
+            // Check if paths are actually strings
+            console.log(`📍 Path Check: ${job.data.localPath}`);
+            
+            const result = await processAndUploadVideo(job.data.localPath);
+            
+            console.log("💾 Database saving...");
             const finalThumbnail = userThumbnailUrl || result.fallbackThumbUrl;
             
             console.log("🤖 Starting AI summary...");
@@ -51,7 +55,10 @@ const worker = new Worker(
 
             console.log(`✅ Success: ${title}`);
         } catch (error) {
-            console.error("❌ Worker Error:", error.message);
+            console.error("🛑 WORKER FATAL ERROR:");
+            console.error(`Name: ${error.name}`);
+            console.error(`Message: ${error.message}`);
+            console.error(`Stack: ${error.stack}`);
             throw error;
         } finally {
             // STRICT CLEANUP FOR RENDER 512MB LIMIT
@@ -77,3 +84,12 @@ const worker = new Worker(
 
 // Fail-safe default export
 export default videoQueue;
+
+// Add these listeners to catch Redis/Queue connection issues
+worker.on('failed', (job, err) => {
+    console.error(`❌ Job ${job.id} failed with error: ${err.message}`);
+});
+
+worker.on('error', err => {
+    console.error(`🔥 Worker Global Error: ${err.message}`);
+});
