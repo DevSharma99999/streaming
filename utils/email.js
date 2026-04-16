@@ -1,10 +1,14 @@
-import * as SibApiV3Sdk from '@getbrevo/brevo'; // Fix: Use * as syntax
+import * as SibApiV3Sdk from '@getbrevo/brevo';
 
+// Fix: Access the constructors through the SibApiV3Sdk object correctly
 const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+
+// Set the API Key
 const apiKey = SibApiV3Sdk.ApiClient.instance.authentications['api-key'];
 apiKey.apiKey = process.env.BREVO_API_KEY;
 
 export const sendValdoraEmail = async (email, otp, subject) => {
+    // Fix: Constructor access
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
     sendSmtpEmail.subject = subject;
@@ -28,7 +32,6 @@ export const sendValdoraEmail = async (email, otp, subject) => {
         console.log("Brevo: Email sent successfully");
         return { success: true };
     } catch (error) {
-        // Log the actual error body from Brevo for better debugging
         console.error("Brevo Service Error:", error.response?.text || error.message);
         return { success: false, error };
     }
