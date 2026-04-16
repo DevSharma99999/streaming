@@ -1,3 +1,22 @@
+import { Queue, Worker } from "bullmq";
+import Redis from 'ioredis';
+import { processAndUploadVideo } from "./videoProcessor.js";
+import { video } from "../models/videoModel.js";
+import fs from 'fs';
+import path from "path";
+import { processVideoSummaryJob } from "./summary.js";
+
+
+
+const connection = new Redis(process.env.REDIS_URL, {
+  maxRetriesPerRequest: null, // Mandatory for BullMQ
+  tls: {
+    rejectUnauthorized: false // Required for some serverless environments like Render/Upstash
+  }
+});
+
+export const videoQueue = new Queue("video-processing", { connection });
+
 const worker = new Worker(
     "video-processing",
     async (job) => {
