@@ -1,4 +1,4 @@
-import SibApiV3Sdk from '@getbrevo/brevo';
+import * as SibApiV3Sdk from '@getbrevo/brevo'; // Fix: Use * as syntax
 
 const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 const apiKey = SibApiV3Sdk.ApiClient.instance.authentications['api-key'];
@@ -9,7 +9,6 @@ export const sendValdoraEmail = async (email, otp, subject) => {
 
     sendSmtpEmail.subject = subject;
     sendSmtpEmail.to = [{ email: email }];
-    // You can use your own Gmail here as the sender
     sendSmtpEmail.sender = { name: "Valdora Team", email: "kaushikdev381@gmail.com" };
     sendSmtpEmail.htmlContent = `
         <div style="font-family: sans-serif; text-align: center; background: #0f0f0f; color: white; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto; border: 1px solid #333;">
@@ -25,11 +24,12 @@ export const sendValdoraEmail = async (email, otp, subject) => {
     `;
 
     try {
-        const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log("Brevo: Email sent successfully", data.messageId);
+        await apiInstance.sendTransacEmail(sendSmtpEmail);
+        console.log("Brevo: Email sent successfully");
         return { success: true };
     } catch (error) {
-        console.error("Brevo Service Error:", error.response?.body || error.message);
+        // Log the actual error body from Brevo for better debugging
+        console.error("Brevo Service Error:", error.response?.text || error.message);
         return { success: false, error };
     }
 };
