@@ -2,95 +2,110 @@ import fs from 'fs';
 import path from 'path';
 import ffmpeg from "fluent-ffmpeg";
 import { v2 as cloudinary } from "cloudinary";
+import dotenv from 'dotenv';
 
+dotenv.config();
+
+// Standardize paths for Production (Render) vs Local (Windows)
 if (process.env.NODE_ENV === "production") {
     ffmpeg.setFfmpegPath("ffmpeg");
     ffmpeg.setFfprobePath("ffprobe");
 } else {
-    // Windows dev paths
-    const BASE_PATH = "C:\\ffmpeg\\bin"; 
+    const BASE_PATH = "C:\\Users\\DEEPAK\\Downloads\\ffmpeg-2026-04-06-git-7fd2be97b9-full_build\\ffmpeg-2026-04-06-git-7fd2be97b9-full_build\\bin"; 
     ffmpeg.setFfmpegPath(path.join(BASE_PATH, "ffmpeg.exe"));
     ffmpeg.setFfprobePath(path.join(BASE_PATH, "ffprobe.exe"));
 }
-cloudinary.config({
 
-    cloud_name: process.env.cloudinaryName,
-    api_key: process.env.cloudinarykey,
-    api_secret: process.env.cloudinarySecret
+cloudinary.config({ 
+    cloud_name: process.env.cloudinaryName, 
+    api_key: process.env.cloudinarykey, 
+    api_secret: process.env.cloudinarySecret 
 });
-
 
 export const processAndUploadVideo = async (localPath) => {
     const absPath = path.resolve(localPath);
+    if (!fs.existsSync(absPath)) throw new Error("Video file not found at: " + absPath);
+
     const videoId = `video_${Date.now()}`;
     const outputDir = path.resolve(`./public/temp/${videoId}`);
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
     const runffmpeg = (options, outputName) =>
-    new Promise((resolve, reject) => {
-        console.log(`🎬 Initializing FFmpeg: ${outputName}`);
-
-        const command = ffmpeg(absolutePath)
-            .outputOptions(options)
-            .output(path.join(outputDir, outputName))
-            .on("start", (cmd) => {
-                // This shows you exactly what command Render is running
-                console.log(`🖥️ Render Command: ${cmd}`);
-            })
-            .on("stderr", (stderrLine) => {
-                // THIS CAPTURES FFmpeg INTERNAL ERRORS
-                if (stderrLine.includes("Error") || stderrLine.includes("invalid")) {
-                    console.error(`⚠️ FFmpeg Internal: ${stderrLine}`);
-                }
-            })
-            .on("error", (err, stdout, stderr) => {
-                console.error("❌ FFmpeg Hard Crash!");
-                console.error("Message:", err.message);
-                console.error("Stderr Output:", stderr);
-                reject(err);
-            })
-            .on("end", () => {
-                console.log(`✅ Finished: ${outputName}`);
-                resolve();
-            });
-
-        command.run();
-    });
+        new Promise((resolve, reject) => {
+            console.log(`🛠️ Initializing FFmpeg for: ${outputName}`);
+            ffmpeg(absPath)
+                .outputOptions(options)
+                .output(path.join(outputDir, outputName))
+                .on("start", (cmd) => console.log(`💻 Executing: ${outputName}`))
+                .on("progress", (p) => {
+                   if(p.percent) console.log(`⏳ ${outputName} Progress: ${Math.round(p.percent)}%`);
+                })
+                .on("end", resolve)
+                .on("error", (err) => {
+                    console.error(`❌ FFmpeg Error [${outputName}]: ${err.message}`);
+                    reject(err);
+                })
+                .run();
+        });
 
     try {
-        const metadata = await new Promise((res, rej) => ffmpeg.ffprobe(absPath, (e, d) => e ? rej(e) : res(d)));
+        console.log("📡 Probing video metadata...");
+        const metadata = await new Promise((res, rej) => 
+            ffmpeg.ffprobe(absPath, (e, d) => e ? rej(e) : res(d))
+        );
         const duration = metadata.format.duration;
+        console.log(`⏱️ Duration: ${duration}s`);
 
-        // Sequential to save RAM
-        await runffmpeg(["-vf scale=-2:360", "-hls_time 10", "-f hls"], "360p.m3u8");
-        await runffmpeg(["-vf scale=-2:480", "-hls_time 10", "-f hls"], "480p.m3u8");
+        // Render-safe options
+        const lowRamOpts = ["-preset ultrafast", "-threads 1", "-hls_time 10", "-hls_list_size 0"];
+
+        console.log("🎬 Encoding 360p...");
+        await runffmpeg(["-vf scale=-2:360", ...lowRamOpts, "-f hls"], "360p.m3u8");
         
+        console.log("🎬 Encoding 480p...");
+        await runffmpeg(["-vf scale=-2:480", ...lowRamOpts, "-f hls"], "480p.m3u8");
+        
+        console.log("🎧 Extracting audio for AI...");
         const audioPath = path.join(outputDir, "audio.mp3");
-        await new Promise((res, rej) => ffmpeg(absPath).noVideo().save(audioPath).on("end", res).on("error", rej));
-        
-        await new Promise((res, rej) => ffmpeg(absPath).screenshots({ timestamps: ['5%'], filename: 'thumb.jpg', folder: outputDir, size: '640x360' }).on("end", res).on("error", rej));
+        await new Promise((res, rej) => {
+            ffmpeg(absPath).noVideo().audioCodec("libmp3lame").save(audioPath).on("end", res).on("error", rej);
+        });
+
+        console.log("🖼️ Capturing thumbnail...");
+        await new Promise((res, rej) => {
+            ffmpeg(absPath).screenshots({ 
+                timestamps: ['5%'], 
+                filename: 'fallback_thumb.jpg', 
+                folder: outputDir, 
+                size: '640x360' 
+            }).on("end", res).on("error", rej);
+        });
 
         const files = fs.readdirSync(outputDir);
-        let results = { url360: "", url480: "", fallbackThumbUrl: "" };
+        let urls = { url360: "", url480: "", fallbackThumbUrl: "" };
 
+        console.log(`🚀 Uploading ${files.length} files to Cloudinary...`);
         for (const file of files) {
             if (file === "audio.mp3") continue;
             const fPath = path.join(outputDir, file);
+            
             const up = await cloudinary.uploader.upload(fPath, {
                 resource_type: (file.endsWith(".m3u8") || file.endsWith(".ts")) ? "raw" : "image",
                 folder: `hls_streams/${videoId}`,
-                public_id: file
+                public_id: file,
             });
-            if (file.includes("360p.m3u8")) results.url360 = up.secure_url;
-            if (file.includes("480p.m3u8")) results.url480 = up.secure_url;
-            if (file.endsWith(".jpg")) results.fallbackThumbUrl = up.secure_url;
-            
-            fs.unlinkSync(fPath); // Delete immediately to free disk
+
+            if (file.includes("360p.m3u8")) urls.url360 = up.secure_url;
+            if (file.includes("480p.m3u8")) urls.url480 = up.secure_url;
+            if (file.endsWith(".jpg")) urls.fallbackThumbUrl = up.secure_url;
+
+            fs.unlinkSync(fPath); // Delete immediately to free disk space
         }
 
-        return { ...results, duration, videoId, audioPath, outputDir };
+        return { ...urls, duration, videoId, audioPath, outputDir };
+
     } catch (error) {
-        if (fs.existsSync(outputDir)) fs.rmSync(outputDir, { recursive: true });
+        if (fs.existsSync(outputDir)) fs.rmSync(outputDir, { recursive: true, force: true });
         throw error;
     }
 };
