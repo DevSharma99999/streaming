@@ -1,32 +1,30 @@
 import { Queue, Worker } from "bullmq";
 import Redis from 'ioredis';
-import { processAndUploadVideo } from "./videoProcessor.js";
-import { video } from "../models/videoModel.js";
 import fs from 'fs';
 import path from "path";
+import { processAndUploadVideo } from "./videoProcessor.js";
+import { video as VideoModel } from "../models/videoModel.js";
 import { processVideoSummaryJob } from "./summary.js";
 
-
-
 const connection = new Redis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: null, // Mandatory for BullMQ
-  tls: {
-    rejectUnauthorized: false // Required for some serverless environments like Render/Upstash
-  }
+    maxRetriesPerRequest: null,
+    tls: { rejectUnauthorized: false }
 });
 
+// Named export for the controller
 export const videoQueue = new Queue("video-processing", { connection });
 
+// Initialize Worker
 const worker = new Worker(
     "video-processing",
     async (job) => {
-        const { localPath, title, description, userThumbnailUrl, category, owner } = job.data;
+        const { localPath, title, description, userThumbnailUrl, category, owner, tags } = job.data;
         let result = null;
 
         try {
             console.log(`🎬 Processing: ${title}`);
             
-            // 1. Process and Upload
+            // Sequential processing (360p then 480p) to save RAM
             result = await processAndUploadVideo(localPath);
 
             const finalThumbnail = userThumbnailUrl || result.fallbackThumbUrl;
@@ -34,53 +32,48 @@ const worker = new Worker(
             console.log("🤖 Starting AI summary...");
             const aiResult = await processVideoSummaryJob(result.audioPath);
 
-            const transcript = aiResult?.transcript || "";
-            const summary = aiResult?.summary || "Summary not available";
-            const shortTranscript = transcript ? transcript.slice(0, 2000) : "";
-
-            // 2. Save to Database
-            await video.create({
+            // Save to DB
+            await VideoModel.create({
                 title,
                 description,
                 category: category || "General",
+                tags: tags || [],
                 owner,
                 videoUrl: result.url360,
                 videoUrl480: result.url480,
-                cloudinaryId: `hls_streams/${result.videoId}`,
+                cloudinaryId: result.videoId,
                 thumbnail: finalThumbnail,
                 duration: result.duration,
-                transcript: shortTranscript,
-                summary,
+                transcript: aiResult?.transcript?.slice(0, 2000) || "",
+                summary: aiResult?.summary || "Summary not available",
                 status: "ready" 
             });
 
             console.log(`✅ Success: ${title}`);
-
         } catch (error) {
             console.error("❌ Worker Error:", error.message);
-            throw error; // Let BullMQ handle retries
+            throw error;
         } finally {
-            // ALWAYS CLEANUP
-            console.log("🧹 Commencing final cleanup...");
+            // STRICT CLEANUP FOR RENDER 512MB LIMIT
             try {
-                // Delete the entire temp folder for this video (including audio)
                 if (result?.outputDir && fs.existsSync(result.outputDir)) {
                     fs.rmSync(result.outputDir, { recursive: true, force: true });
-                    console.log("🗑️ Temp directory cleared");
                 }
-                // Delete the original uploaded mp4 file
                 if (fs.existsSync(localPath)) {
                     fs.unlinkSync(localPath);
-                    console.log("🗑️ Original MP4 cleared");
                 }
-            } catch (cleanupError) {
-                console.error("Cleanup Warning:", cleanupError.message);
+                console.log("🧹 Cleanup complete");
+            } catch (e) {
+                console.error("Cleanup error:", e.message);
             }
         }
     },
     {
         connection,
-        concurrency: 1, // Crucial for 512MB RAM: Only one video at a time
+        concurrency: 1, // Only 1 video at a time to prevent OOM
         lockDuration: 600000
     }
 );
+
+// Fail-safe default export
+export default videoQueue;
