@@ -12,6 +12,13 @@ if (process.env.NODE_ENV === "production") {
     ffmpeg.setFfmpegPath(path.join(BASE_PATH, "ffmpeg.exe"));
     ffmpeg.setFfprobePath(path.join(BASE_PATH, "ffprobe.exe"));
 }
+cloudinary.config({
+
+    cloud_name: process.env.cloudinaryName,
+    api_key: process.env.cloudinarykey,
+    api_secret: process.env.cloudinarySecret
+});
+
 
 export const processAndUploadVideo = async (localPath) => {
     const absPath = path.resolve(localPath);
