@@ -1,14 +1,15 @@
-import * as SibApiV3Sdk from '@getbrevo/brevo';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const SibApiV3Sdk = require('@getbrevo/brevo');
 
-// Fix: Access the constructors through the SibApiV3Sdk object correctly
+// Initialize the API Instance
 const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
-// Set the API Key
+// Configure API Key
 const apiKey = SibApiV3Sdk.ApiClient.instance.authentications['api-key'];
 apiKey.apiKey = process.env.BREVO_API_KEY;
 
 export const sendValdoraEmail = async (email, otp, subject) => {
-    // Fix: Constructor access
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
     sendSmtpEmail.subject = subject;
