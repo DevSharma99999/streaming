@@ -57,7 +57,7 @@ export const processAndUploadVideo = async (localPath) => {
         console.log(`⏱️ Duration: ${duration}s`);
 
         // Render-safe options
-        const lowRamOpts = ["-preset ultrafast", "-threads 1", "-hls_time 10", "-hls_list_size 0"];
+        const lowRamOpts = ["-preset ultrafast", "-threads 1", "-hls_time 6", "-hls_list_size 0"];
 
         console.log("🎬 Encoding 360p...");
         await runffmpeg(["-vf scale=-2:360", ...lowRamOpts, "-f hls"], "360p.m3u8");
