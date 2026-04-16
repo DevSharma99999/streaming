@@ -40,6 +40,10 @@ app.options(/(.*)/, cors());
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(cookieParser());
+// Add this in app.js
+app.get('/api/v1/health', (req, res) => {
+    res.status(200).json({ status: "active", message: "Server is awake" });
+});
 app.use("/api/v1/users", userRouter);   // This enables /api/v1/users/login
 app.use("/api/v1/videos", videoRouter);
 app.get('/', (req,res)=>{
