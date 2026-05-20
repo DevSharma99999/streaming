@@ -16,10 +16,7 @@ playlistRouter.get("/", verifyJWT, async (req, res) => {
 });
 
 // GET USER PLAYLISTS
-playlistRouter.get("/", verifyJWT,async (req, res) => {
-  const playlists = await Playlist.find({ owner: req.user._id });
-  res.json({ data: playlists });
-});
+
 
 // ADD VIDEO
 playlistRouter.post("/:id/add",verifyJWT, async (req, res) => {
