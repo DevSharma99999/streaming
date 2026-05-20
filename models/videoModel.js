@@ -13,7 +13,6 @@ const videoSchema = new mongoose.Schema({
     thumbnail: { type: String, default: "" }, // URL of the generated image
     duration: { type: Number, default: 0 }, // In seconds
     category: { type: String, default: "General" },
-    tags: [{ type: String }],
     // Interactions
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     views: { type: Number, default: 0 },
