@@ -171,11 +171,11 @@ README.md
 
 ### ⬆ Upload Page
 
-(Add Screenshot)
+(adding Screenshot)
 
 ### 🤖 AI Summary
 
-(Add Screenshot)
+(Adding Screenshot)
 
 ### 📚 Playlist
 
@@ -278,7 +278,6 @@ GEMINI_API_KEY=
 ## 👨‍💻 Team
 
 - Dev Sharma
-- Ankit
 - Chirag Kumar
 
 ---
