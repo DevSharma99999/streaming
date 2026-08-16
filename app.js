@@ -27,8 +27,23 @@ app.get('/test', (req, res) => {
 });
 
 //here use
+const allowedOrigins = [
+    'https://streaming-ak-gamma.vercel.app',
+    'http://localhost:5173'
+];
+
 app.use(cors({
-    origin: 'https://streaming-ak-gamma.vercel.app',
+    origin: function (origin, callback) {
+        // Allow requests with no origin
+        // (Postman, server-to-server, etc.)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
