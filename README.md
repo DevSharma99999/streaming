@@ -159,32 +159,6 @@ README.md
 
 ---
 
-## 📸 Screenshots
-
-### 🏠 Home Page
-
-(Add Screenshot)
-
-### 🎬 Video Player
-
-(Add Screenshot)
-
-### ⬆ Upload Page
-
-(adding Screenshot)
-
-### 🤖 AI Summary
-
-(Adding Screenshot)
-
-### 📚 Playlist
-
-(Add Screenshot)
-
-### 📜 Watch History
-
-(Add Screenshot)
-
 ---
 
 ## 🔧 Installation
